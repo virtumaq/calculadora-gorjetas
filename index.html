@@ -221,6 +221,36 @@
             font-size: 1.125rem;
         }
 
+        .result-original {
+            background: #f8fafc;
+        }
+
+        .result-original .label {
+            color: #475569;
+            font-weight: 500;
+        }
+
+        .result-original .value {
+            color: #334155;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        .result-tip-per-person {
+            background: #fef3c7;
+        }
+
+        .result-tip-per-person .label {
+            color: #d97706;
+            font-weight: 500;
+        }
+
+        .result-tip-per-person .value {
+            color: #92400e;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
         .footer {
             text-align: center;
             margin-top: 2rem;
@@ -266,6 +296,18 @@
             opacity: 0;
             transition: opacity 0.3s;
             text-align: center;
+        }
+
+        .comment-field {
+            resize: vertical;
+            min-height: 4rem;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+
+        .comment-field::placeholder {
+            color: #9ca3af;
+            font-style: italic;
         }
 
         @media (max-width: 640px) {
@@ -366,6 +408,31 @@
                 </label>
                 <input type="text" id="pixKey" class="input" placeholder="seuemail@gmail.com">
             </div>
+
+            <!-- Transfer Deadline -->
+            <div class="input-group">
+                <label class="label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
+                    </svg>
+                    Data limite para transferência (opcional)
+                </label>
+                <input type="date" id="transferDeadline" class="input">
+            </div>
+
+            <!-- Organizer Comment -->
+            <div class="input-group">
+                <label class="label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Comentário do organizador (opcional)
+                </label>
+                <textarea id="organizerComment" class="input comment-field" placeholder="Ex: Pessoal, vamos nos encontrar às 19h na entrada. Quem não puder transferir até o prazo, me avisa! Abraços!" rows="3"></textarea>
+            </div>
         </div>
 
         <!-- Results -->
@@ -384,8 +451,18 @@
                 </div>
 
                 <div class="result-item result-per-person" id="perPersonResult" style="display: none;">
-                    <span class="label">Por Pessoa</span>
+                    <span class="label">Por Pessoa (Total)</span>
                     <span class="value">R$ <span id="perPersonAmount">0,00</span></span>
+                </div>
+
+                <div class="result-item result-original" id="originalPerPersonResult" style="display: none;">
+                    <span class="label">Conta original por pessoa</span>
+                    <span class="value">R$ <span id="originalPerPersonAmount">0,00</span></span>
+                </div>
+
+                <div class="result-item result-tip-per-person" id="tipPerPersonResult" style="display: none;">
+                    <span class="label">Gorjeta por pessoa</span>
+                    <span class="value">+ R$ <span id="tipPerPersonAmount">0,00</span></span>
                 </div>
             </div>
         </div>
@@ -416,6 +493,8 @@
         const tipPercentInput = document.getElementById('tipPercent');
         const peopleInput = document.getElementById('people');
         const pixKeyInput = document.getElementById('pixKey');
+        const transferDeadlineInput = document.getElementById('transferDeadline');
+        const organizerCommentInput = document.getElementById('organizerComment');
         const tipButtons = document.querySelectorAll('.tip-btn');
         
         // Result elements
@@ -424,8 +503,31 @@
         const totalAmount = document.getElementById('totalAmount');
         const perPersonAmount = document.getElementById('perPersonAmount');
         const perPersonResult = document.getElementById('perPersonResult');
+        const originalPerPersonAmount = document.getElementById('originalPerPersonAmount');
+        const originalPerPersonResult = document.getElementById('originalPerPersonResult');
+        const tipPerPersonAmount = document.getElementById('tipPerPersonAmount');
+        const tipPerPersonResult = document.getElementById('tipPerPersonResult');
 
-        // Format currency in Brazilian format
+        // Format date in Brazilian format
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString + 'T00:00:00');
+            return date.toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+            });
+        }
+
+        // Set minimum date to today
+        function setMinDate() {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const formattedDate = tomorrow.toISOString().split('T')[0];
+            transferDeadlineInput.min = formattedDate;
+        }
         function formatCurrency(value) {
             if (isNaN(value)) return "0,00";
             return value.toLocaleString('pt-BR', {
@@ -490,30 +592,40 @@
             const tipPercent = parseFloat(tipPercentInput.value) || 0;
             const people = parseInt(peopleInput.value) || 1;
             const pixKey = pixKeyInput.value.trim();
+            const transferDeadline = transferDeadlineInput.value;
+            const organizerComment = organizerCommentInput.value.trim();
 
             const tip = (bill * tipPercent) / 100;
             const total = bill + tip;
             const perPerson = total / people;
+            const originalPerPerson = bill / people;
+            const tipPerPerson = tip / people;
 
             // Update display
             tipPercentDisplay.textContent = tipPercent;
             tipAmount.textContent = formatCurrency(tip);
             totalAmount.textContent = formatCurrency(total);
             perPersonAmount.textContent = formatCurrency(perPerson);
+            originalPerPersonAmount.textContent = formatCurrency(originalPerPerson);
+            tipPerPersonAmount.textContent = formatCurrency(tipPerPerson);
 
-            // Show/hide per person result
+            // Show/hide per person results
             if (people > 1) {
                 perPersonResult.style.display = 'flex';
+                originalPerPersonResult.style.display = 'flex';
+                tipPerPersonResult.style.display = 'flex';
             } else {
                 perPersonResult.style.display = 'none';
+                originalPerPersonResult.style.display = 'none';
+                tipPerPersonResult.style.display = 'none';
             }
 
             // Generate WhatsApp summary
-            generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey);
+            generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey, originalPerPerson, tipPerPerson, transferDeadline, organizerComment);
         }
 
         // Generate WhatsApp summary text
-        function generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey) {
+        function generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey, originalPerPerson, tipPerPerson, transferDeadline, organizerComment) {
             if (bill <= 0) {
                 document.getElementById('whatsappCard').style.display = 'none';
                 return;
@@ -525,14 +637,28 @@
             summary += `💳 *Total: R$ ${formatCurrency(total)}*\n`;
             
             if (people > 1) {
-                summary += `\n👥 Dividido entre ${people} pessoas\n`;
-                summary += `💰 *Por pessoa: R$ ${formatCurrency(perPerson)}*`;
+                summary += `\n👥 Dividido entre ${people} pessoas:\n`;
+                summary += `📄 Conta original por pessoa: R$ ${formatCurrency(originalPerPerson)}\n`;
+                summary += `💰 Gorjeta por pessoa: + R$ ${formatCurrency(tipPerPerson)}\n`;
+                summary += `💳 *Total por pessoa: R$ ${formatCurrency(perPerson)}*`;
             }
 
             // Add PIX key only if provided
             if (pixKey) {
                 summary += `\n\n💸 *PIX para transferência:*\n`;
                 summary += `🔑 ${pixKey}`;
+            }
+
+            // Add transfer deadline only if provided
+            if (transferDeadline) {
+                summary += `\n\n⏰ *Prazo para transferência:*\n`;
+                summary += `📅 ${formatDate(transferDeadline)}`;
+            }
+
+            // Add organizer comment only if provided
+            if (organizerComment) {
+                summary += `\n\n💬 *Recado do organizador:*\n`;
+                summary += `"${organizerComment}"`;
             }
 
             summary += `\n\n✨ _Calculado com a Calculadora de Gorjetas_`;
@@ -606,11 +732,14 @@
         billInput.addEventListener('input', handleBillInput);
         peopleInput.addEventListener('input', calculate);
         pixKeyInput.addEventListener('input', calculate);
+        transferDeadlineInput.addEventListener('input', calculate);
+        organizerCommentInput.addEventListener('input', calculate);
         
         // Copy button event listener
         document.getElementById('copyButton').addEventListener('click', copyToClipboard);
 
-        // Initial calculation
+        // Set minimum date and initial calculation
+        setMinDate();
         calculate();
     </script>
 </body>
