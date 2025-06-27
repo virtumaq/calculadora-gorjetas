@@ -308,7 +308,7 @@
                 </label>
                 <div class="input-wrapper">
                     <span class="currency-symbol">R$</span>
-                    <input type="text" id="bill" class="input input-with-symbol" placeholder="Digite seu valor aqui" step="0.01">
+                    <input type="text" id="bill" class="input input-with-symbol" placeholder="0,00">
                 </div>
             </div>
 
@@ -353,6 +353,18 @@
                     Número de Pessoas
                 </label>
                 <input type="number" id="people" class="input" value="1" min="1">
+            </div>
+
+            <!-- PIX Key -->
+            <div class="input-group">
+                <label class="label">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="20" height="14" x="2" y="5" rx="2"/>
+                        <line x1="2" x2="22" y1="10" y2="10"/>
+                    </svg>
+                    Chave PIX (opcional)
+                </label>
+                <input type="text" id="pixKey" class="input" placeholder="seuemail@gmail.com">
             </div>
         </div>
 
@@ -403,6 +415,7 @@
         const billInput = document.getElementById('bill');
         const tipPercentInput = document.getElementById('tipPercent');
         const peopleInput = document.getElementById('people');
+        const pixKeyInput = document.getElementById('pixKey');
         const tipButtons = document.querySelectorAll('.tip-btn');
         
         // Result elements
@@ -476,6 +489,7 @@
             const bill = parseBrazilianNumber(billInput.value);
             const tipPercent = parseFloat(tipPercentInput.value) || 0;
             const people = parseInt(peopleInput.value) || 1;
+            const pixKey = pixKeyInput.value.trim();
 
             const tip = (bill * tipPercent) / 100;
             const total = bill + tip;
@@ -495,11 +509,11 @@
             }
 
             // Generate WhatsApp summary
-            generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent);
+            generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey);
         }
 
         // Generate WhatsApp summary text
-        function generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent) {
+        function generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent, pixKey) {
             if (bill <= 0) {
                 document.getElementById('whatsappCard').style.display = 'none';
                 return;
@@ -513,6 +527,12 @@
             if (people > 1) {
                 summary += `\n👥 Dividido entre ${people} pessoas\n`;
                 summary += `💰 *Por pessoa: R$ ${formatCurrency(perPerson)}*`;
+            }
+
+            // Add PIX key only if provided
+            if (pixKey) {
+                summary += `\n\n💸 *PIX para transferência:*\n`;
+                summary += `🔑 ${pixKey}`;
             }
 
             summary += `\n\n✨ _Calculado com a Calculadora de Gorjetas_`;
@@ -585,6 +605,7 @@
         // Add event listeners
         billInput.addEventListener('input', handleBillInput);
         peopleInput.addEventListener('input', calculate);
+        pixKeyInput.addEventListener('input', calculate);
         
         // Copy button event listener
         document.getElementById('copyButton').addEventListener('click', copyToClipboard);
