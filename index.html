@@ -228,6 +228,46 @@
             font-size: 0.875rem;
         }
 
+        .whatsapp-text {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            white-space: pre-line;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .copy-button {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            background: #059669;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-button:hover {
+            background: #047857;
+            transform: translateY(-1px);
+        }
+
+        .copy-feedback {
+            margin-top: 0.5rem;
+            color: #059669;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-align: center;
+        }
+
         @media (max-width: 640px) {
             .header-title h1 {
                 font-size: 1.5rem;
@@ -268,7 +308,7 @@
                 </label>
                 <div class="input-wrapper">
                     <span class="currency-symbol">R$</span>
-                    <input type="number" id="bill" class="input input-with-symbol" placeholder="0,00" step="0.01">
+                    <input type="text" id="bill" class="input input-with-symbol" placeholder="Digite seu valor aqui" step="0.01">
                 </div>
             </div>
 
@@ -338,6 +378,20 @@
             </div>
         </div>
 
+        <!-- WhatsApp Summary -->
+        <div class="card" id="whatsappCard" style="display: none;">
+            <div class="results">
+                <h2>📱 Resumo para WhatsApp</h2>
+                <div class="whatsapp-text" id="whatsappText">💰 Resumo da Conta</div>
+                <button id="copyButton" class="copy-button">
+                    📋 Copiar para WhatsApp
+                </button>
+                <div id="copyFeedback" class="copy-feedback">
+                    ✅ Copiado com sucesso!
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <div class="footer">
             <p>💡 Dica: 15-20% é o padrão para bom atendimento</p>
@@ -358,14 +412,68 @@
         const perPersonAmount = document.getElementById('perPersonAmount');
         const perPersonResult = document.getElementById('perPersonResult');
 
-        // Format currency
+        // Format currency in Brazilian format
         function formatCurrency(value) {
-            return value.toFixed(2).replace('.', ',');
+            if (isNaN(value)) return "0,00";
+            return value.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Parse Brazilian number format
+        function parseBrazilianNumber(str) {
+            if (!str) return 0;
+            // Remove R$ and spaces
+            str = str.replace(/[R$\s]/g, '');
+            // Remove dots (thousands separator) and replace comma with dot
+            str = str.replace(/\./g, '').replace(',', '.');
+            return parseFloat(str) || 0;
+        }
+
+        // Format input value as Brazilian currency while typing
+        function formatInputValue(value) {
+            // Remove all non-numeric characters
+            let cleanValue = value.replace(/[^\d]/g, '');
+            
+            if (cleanValue === '') return '';
+            
+            // Convert to number and divide by 100 to handle cents
+            let numericValue = parseInt(cleanValue) / 100;
+            
+            // Format as Brazilian currency without R$
+            return numericValue.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Handle bill input formatting
+        function handleBillInput(e) {
+            const input = e.target;
+            const cursorPosition = input.selectionStart;
+            const oldValue = input.value;
+            const newValue = formatInputValue(e.target.value);
+            
+            // Update the input value
+            input.value = newValue;
+            
+            // Calculate new cursor position
+            const lengthDiff = newValue.length - oldValue.length;
+            const newCursorPosition = Math.max(0, cursorPosition + lengthDiff);
+            
+            // Set cursor position after a small delay to ensure the value is updated
+            setTimeout(() => {
+                input.setSelectionRange(newCursorPosition, newCursorPosition);
+            }, 0);
+            
+            // Trigger calculation
+            calculate();
         }
 
         // Calculate and update results
         function calculate() {
-            const bill = parseFloat(billInput.value) || 0;
+            const bill = parseBrazilianNumber(billInput.value);
             const tipPercent = parseFloat(tipPercentInput.value) || 0;
             const people = parseInt(peopleInput.value) || 1;
 
@@ -384,6 +492,59 @@
                 perPersonResult.style.display = 'flex';
             } else {
                 perPersonResult.style.display = 'none';
+            }
+
+            // Generate WhatsApp summary
+            generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent);
+        }
+
+        // Generate WhatsApp summary text
+        function generateWhatsAppSummary(bill, tip, total, perPerson, people, tipPercent) {
+            if (bill <= 0) {
+                document.getElementById('whatsappCard').style.display = 'none';
+                return;
+            }
+
+            let summary = `💰 *Resumo da Conta*\n\n`;
+            summary += `🧾 Conta: R$ ${formatCurrency(bill)}\n`;
+            summary += `💝 Gorjeta (${tipPercent}%): R$ ${formatCurrency(tip)}\n`;
+            summary += `💳 *Total: R$ ${formatCurrency(total)}*\n`;
+            
+            if (people > 1) {
+                summary += `\n👥 Dividido entre ${people} pessoas\n`;
+                summary += `💰 *Por pessoa: R$ ${formatCurrency(perPerson)}*`;
+            }
+
+            summary += `\n\n✨ _Calculado com a Calculadora de Gorjetas_`;
+
+            document.getElementById('whatsappText').textContent = summary;
+            document.getElementById('whatsappCard').style.display = 'block';
+        }
+
+        // Copy to clipboard function
+        async function copyToClipboard() {
+            const text = document.getElementById('whatsappText').textContent;
+            const feedback = document.getElementById('copyFeedback');
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                feedback.style.opacity = '1';
+                setTimeout(() => {
+                    feedback.style.opacity = '0';
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                feedback.style.opacity = '1';
+                setTimeout(() => {
+                    feedback.style.opacity = '0';
+                }, 2000);
             }
         }
 
@@ -422,8 +583,11 @@
         });
 
         // Add event listeners
-        billInput.addEventListener('input', calculate);
+        billInput.addEventListener('input', handleBillInput);
         peopleInput.addEventListener('input', calculate);
+        
+        // Copy button event listener
+        document.getElementById('copyButton').addEventListener('click', copyToClipboard);
 
         // Initial calculation
         calculate();
